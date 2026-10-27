@@ -26,6 +26,8 @@ function AdminDashboard({ onLogout, currentUser }) {
     const [newCarCapacity, setNewCarCapacity] = React.useState('');
     const [newCarCenter, setNewCarCenter] = React.useState('');
 
+    const hasAdmin = employees.some(emp => emp.role === 'admin');
+
     const loadData = async () => {
         const emps = await store.getEmployees();
         const b = await store.getBookings();
@@ -47,10 +49,16 @@ function AdminDashboard({ onLogout, currentUser }) {
     }, []);
 
     React.useEffect(() => {
-        if(centers.length > 0 && !newEmpCenter) setNewEmpCenter(centers[0].id);
-        if(centers.length > 0 && !newRoomCenter) setNewRoomCenter(centers[0].id);
-        if(centers.length > 0 && !newCarCenter) setNewCarCenter(centers[0].id);
+        if (centers.length > 0 && !newEmpCenter) setNewEmpCenter(centers[0].id);
+        if (centers.length > 0 && !newRoomCenter) setNewRoomCenter(centers[0].id);
+        if (centers.length > 0 && !newCarCenter) setNewCarCenter(centers[0].id);
     }, [centers]);
+
+    React.useEffect(() => {
+        if (!hasAdmin && newRole !== 'admin') {
+            setNewRole('admin');
+        }
+    }, [hasAdmin, newRole]);
 
     // --- Employee Handlers ---
     const handleAddEmployee = async (e) => {
@@ -67,7 +75,7 @@ function AdminDashboard({ onLogout, currentUser }) {
             await store.addEmployee(newName.trim(), newPassword.trim(), newRole, newRole === 'admin' ? null : newEmpCenter);
             setNewName('');
             setNewPassword('');
-            setNewRole('employee');
+            setNewRole(hasAdmin ? 'employee' : 'admin');
             setError('');
             await loadData();
         } catch (err) {
@@ -95,7 +103,6 @@ function AdminDashboard({ onLogout, currentUser }) {
         }
     };
     const handleDeleteEmployee = async (id) => {
-        if (id === 'admin-1') return alert('لا يمكن حذف حساب المدير الأساسي');
         if (confirm('هل أنت متأكد من حذف هذا الحساب؟')) {
             await store.deleteEmployee(id);
             await loadData();
@@ -274,7 +281,7 @@ function AdminDashboard({ onLogout, currentUser }) {
                             <div className="card">
                                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                                     <i className="icon-user-plus text-[var(--primary)]"></i>
-                                    إضافة حساب جديد
+                                    {!hasAdmin ? 'إنشاء مدير أول' : 'إضافة حساب جديد'}
                                 </h2>
                                 <form onSubmit={handleAddEmployee} className="space-y-4">
                                     <div>
@@ -283,7 +290,7 @@ function AdminDashboard({ onLogout, currentUser }) {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">كلمة المرور المبدئية</label>
-                                        <input type="text" className="input-field" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="أدخل كلمة المرور..." />
+                                        <input type="text" className="input-field" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="أدخل كلمة المرور" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">صلاحية الحساب</label>
@@ -302,7 +309,9 @@ function AdminDashboard({ onLogout, currentUser }) {
                                         </div>
                                     )}
                                     {error && <div className="text-red-500 text-sm">{error}</div>}
-                                    <button type="submit" className="btn btn-primary w-full">إضافة الحساب</button>
+                                    <button type="submit" className="btn btn-primary w-full">
+                                        {!hasAdmin ? 'إنشاء المدير الأول' : 'إضافة الحساب'}
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -325,30 +334,28 @@ function AdminDashboard({ onLogout, currentUser }) {
                                                     <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                                         {emp.name}
                                                         <button onClick={() => handleEditEmpName(emp.id, emp.name)} className="text-gray-400 hover:text-sky-600"><i className="icon-pencil text-sm"></i></button>
-                                                        {emp.role === 'admin' && <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full">مدير</span>}
-                                                        {emp.role === 'transport_manager' && <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">مسؤول حركة - {cName}</span>}
-                                                        {emp.role === 'employee' && <span className="bg-sky-100 text-sky-700 text-xs px-2 py-0.5 rounded-full">موظف - {cName}</span>}
-                                                        {emp.mustChangePassword && <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full"><i className="icon-shield-alert text-[10px] ml-1"></i>مطلوب تغيير الرمز</span>}
                                                     </h3>
-                                                    <p className="text-xs text-gray-500 mt-1">كلمة المرور الحالية: {emp.password}</p>
+                                                    <div className="flex flex-wrap gap-2 mt-1">
+                                                        {emp.role === 'admin' && <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full">مدير</span>}
+                                                        {emp.role === 'transport_manager' && <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">مسؤول حركة</span>}
+                                                        {emp.role === 'employee' && <span className="bg-sky-100 text-sky-700 text-xs px-2 py-0.5 rounded-full">موظف</span>}
+                                                        {emp.centerId && <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full">{cName}</span>}
+                                                        {emp.mustChangePassword && <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full"><i className="icon-shield-alert text-[10px]"></i> يلزم تغيير كلمة المرور</span>}
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div className="flex flex-wrap gap-2">
-                                                {emp.id !== 'admin-1' && (
-                                                    <>
-                                                        {!emp.mustChangePassword && (
-                                                            <button onClick={() => handleRequirePasswordChange(emp.id, emp.name)} className="btn btn-outline py-1 px-3 text-sm border-amber-200 text-amber-600 hover:bg-amber-50" title="إجبار التغيير">
-                                                                <i className="icon-shield-alert"></i>
-                                                            </button>
-                                                        )}
-                                                        <button onClick={() => handleResetPassword(emp.id, emp.name)} className="btn btn-outline py-1 px-3 text-sm" title="نسيان كلمة المرور/تغيير الرمز">
-                                                            <i className="icon-key"></i>
-                                                        </button>
-                                                        <button onClick={() => handleDeleteEmployee(emp.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="حذف الحساب">
-                                                            <i className="icon-trash"></i>
-                                                        </button>
-                                                    </>
+                                                {!emp.mustChangePassword && (
+                                                    <button onClick={() => handleRequirePasswordChange(emp.id, emp.name)} className="btn btn-outline py-1 px-3 text-sm border-amber-200 text-amber-700" title="إجبار على تغيير كلمة المرور">
+                                                        <i className="icon-shield-alert"></i>
+                                                    </button>
                                                 )}
+                                                <button onClick={() => handleResetPassword(emp.id, emp.name)} className="btn btn-outline py-1 px-3 text-sm" title="تغيير كلمة المرور">
+                                                    <i className="icon-key"></i>
+                                                </button>
+                                                <button onClick={() => handleDeleteEmployee(emp.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="حذف الحساب">
+                                                    <i className="icon-trash"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     )})}
