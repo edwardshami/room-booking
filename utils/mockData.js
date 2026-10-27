@@ -1,26 +1,27 @@
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  addDoc,
+  doc,
+  getDoc,
+  updateDoc,
+  deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyAYxD7K0XghIvnLzq1DEFhgqJbQWDNMvxg",
-    authDomain: "room-booking-aa336.firebaseapp.com",
-    projectId: "room-booking-aa336",
-    storageBucket: "room-booking-aa336.firebasestorage.app",
-    messagingSenderId: "118871746547",
-    appId: "1:118871746547:web:54d03b450c321a24995486",
-    measurementId: "G-H3LQTSG6VW"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyAYxD7K0XghIvnLzq1DEFhgqJbQWDNMvxg",
+  authDomain: "room-booking-aa336.firebaseapp.com",
+  projectId: "room-booking-aa336",
+  storageBucket: "room-booking-aa336.firebasestorage.app",
+  messagingSenderId: "118871746547",
+  appId: "1:118871746547:web:54d03b450c321a24995486",
+  measurementId: "G-H3LQTSG6VW"
+};
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 async function hashPassword(password) {
     const value = String(password ?? '');
@@ -31,7 +32,7 @@ async function hashPassword(password) {
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 
     return Array.from(new Uint8Array(hashBuffer))
-        .map(byte => byte.toString(16).padStart(2, '0'))
+        .map((byte) => byte.toString(16).padStart(2, '0'))
         .join('');
 }
 
@@ -48,7 +49,6 @@ class Store {
         }
     }
 
-    // دوال مساعدة لجلب البيانات من Firestore
     async _getCollection(tableName) {
         const querySnapshot = await getDocs(collection(db, tableName));
         const items = [];
@@ -61,14 +61,13 @@ class Store {
         return items;
     }
 
-    // تنظيف الحجوزات والسجلات المنتهية تلقائياً
     async checkAndCleanupBookings() {
         try {
             const now = new Date();
             let lastThursday20 = new Date(now);
-            const dayOfWeek = now.getDay(); 
+            const dayOfWeek = now.getDay();
             let daysSinceThursday = dayOfWeek - 4;
-            if (daysSinceThursday < 0) daysSinceThursday += 7;                          
+            if (daysSinceThursday < 0) daysSinceThursday += 7;
             lastThursday20.setDate(now.getDate() - daysSinceThursday);
             lastThursday20.setHours(20, 0, 0, 0);
             if (dayOfWeek === 4 && now.getHours() < 20) {
@@ -124,14 +123,15 @@ class Store {
         }
     }
 
-    // --- Centers ---
-    async getCenters() { 
-        return await this._getCollection('booking_center'); 
+    async getCenters() {
+        return await this._getCollection('booking_center');
     }
+
     async addCenter(name) {
         const docRef = await addDoc(collection(db, 'booking_center'), { name });
         return { id: docRef.id, name };
     }
+
     async deleteCenter(id) {
         await deleteDoc(doc(db, 'booking_center', id));
         const rooms = await this.getRooms();
@@ -144,15 +144,16 @@ class Store {
         }
     }
 
-    // --- Rooms ---
-    async getRooms() { 
-        return await this._getCollection('booking_room'); 
+    async getRooms() {
+        return await this._getCollection('booking_room');
     }
+
     async addRoom(name, capacity, centerId) {
         const roomData = { name, capacity: Number(capacity), centerId };
         const docRef = await addDoc(collection(db, 'booking_room'), roomData);
         return { id: docRef.id, ...roomData };
     }
+
     async updateRoom(id, name, capacity) {
         const roomRef = doc(db, 'booking_room', id);
         const roomSnap = await getDoc(roomRef);
@@ -163,34 +164,39 @@ class Store {
             await updateDoc(roomRef, newData);
         }
     }
+
     async deleteRoom(id) {
         await deleteDoc(doc(db, 'booking_room', id));
     }
 
-    // --- Transport ---
-    async getCars() { 
-        return await this._getCollection('transport_car'); 
+    async getCars() {
+        return await this._getCollection('transport_car');
     }
+
     async addCar(type, plateNumber, capacity, centerId) {
         const carData = { type, plateNumber, capacity: Number(capacity), centerId };
         const docRef = await addDoc(collection(db, 'transport_car'), carData);
         return { id: docRef.id, ...carData };
     }
+
     async deleteCar(id) {
         await deleteDoc(doc(db, 'transport_car', id));
     }
+
     async getTransportRecords() {
         const records = await this._getCollection('transport_record');
         return records.sort((a, b) => {
             if (a.date !== b.date) return new Date(a.date) - new Date(b.date);
-            return a.departureTime.localeCompare(b.departureTime);
+            return String(a.departureTime || '').localeCompare(String(b.departureTime || ''));
         });
     }
+
     async addTransportRecord(record) {
         const recordData = { ...record, isCompleted: false };
         const docRef = await addDoc(collection(db, 'transport_record'), recordData);
         return { id: docRef.id, ...recordData };
     }
+
     async markTransportRecordCompleted(id, completionTime) {
         const recordRef = doc(db, 'transport_record', id);
         const recordSnap = await getDoc(recordRef);
@@ -198,33 +204,34 @@ class Store {
             await updateDoc(recordRef, { ...recordSnap.data(), isCompleted: true, completionTime });
         }
     }
+
     async deleteTransportRecord(id) {
         await deleteDoc(doc(db, 'transport_record', id));
     }
 
-    // --- Bookings ---
     async getBookings() {
         const bookings = await this._getCollection('booking_record');
         return bookings.sort((a, b) => new Date(a.date) - new Date(b.date));
     }
+
     async addBooking(booking) {
         const docRef = await addDoc(collection(db, 'booking_record'), booking);
         return { id: docRef.id, ...booking };
     }
+
     async deleteBooking(id) {
         await deleteDoc(doc(db, 'booking_record', id));
     }
 
-    // --- Employees ---
-    async getEmployees() { 
-        return await this._getCollection('booking_employee'); 
+    async getEmployees() {
+        return await this._getCollection('booking_employee');
     }
 
     async authenticate(name, password) {
         const emps = await this.getEmployees();
         const inputHash = await hashPassword(password);
 
-        return emps.find(e => {
+        return emps.find((e) => {
             const storedName = String(e.name || '').trim();
             const enteredName = String(name || '').trim();
             const storedPassword = String(e.password || '');
@@ -303,4 +310,3 @@ class Store {
 export const mockData = new Store();
 window.mockData = mockData;
 window.store = mockData;
-
