@@ -1,30 +1,26 @@
-// استيراد مكتبات Firebase عبر روابط CDN صحيحة ومستقرة
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { 
-  getFirestore, 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDoc 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
 
-// إعدادات Firebase الخاصة بك
-const firebaseConfig = {
-  apiKey: "AIzaSyDCfApMpT9AR4R9KZzL55-J9BezdZA1VVQ",
-  authDomain: "room-booking-53444.firebaseapp.com",
-  projectId: "room-booking-53444",
-  storageBucket: "room-booking-53444.firebasestorage.app",
-  messagingSenderId: "663188924279",
-  appId: "1:663188924279:web:e072e58b4f867f112f6372",
-  measurementId: "G-2VF48PEXM7"
-};
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyAYxD7K0XghIvnLzq1DEFhgqJbQWDNMvxg",
+    authDomain: "room-booking-aa336.firebaseapp.com",
+    projectId: "room-booking-aa336",
+    storageBucket: "room-booking-aa336.firebasestorage.app",
+    messagingSenderId: "118871746547",
+    appId: "1:118871746547:web:54d03b450c321a24995486",
+    measurementId: "G-H3LQTSG6VW"
+  };
 
-// تهيئة Firebase و Firestore
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
 
 class Store {
     constructor() {
