@@ -22,6 +22,19 @@
   const analytics = getAnalytics(app);
 </script>
 
+async function hashPassword(password) {
+    const value = String(password ?? '');
+    if (!value) return '';
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(value);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+    return Array.from(new Uint8Array(hashBuffer))
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+}
+
 class Store {
     constructor() {
         this.init();
@@ -29,17 +42,6 @@ class Store {
 
     async init() {
         try {
-            // التحقق من وجود حساب المدير الأساسي، وإذا لم يوجد يتم إنشاؤه تلقائياً
-            const emps = await this.getEmployees();
-            if (emps.length === 0) {
-                await addDoc(collection(db, 'booking_employee'), {
-                    name: 'المدير العام',
-                    password: 'admin',
-                    role: 'admin',
-                    centerId: null,
-                    mustChangePassword: false
-                });
-            }
             await this.checkAndCleanupBookings();
         } catch (e) {
             console.error('Initialization error:', e);
@@ -217,33 +219,62 @@ class Store {
     async getEmployees() { 
         return await this._getCollection('booking_employee'); 
     }
+
     async authenticate(name, password) {
         const emps = await this.getEmployees();
-        return emps.find(e => e.name === name && e.password === password);
+        const inputHash = await hashPassword(password);
+
+        return emps.find(e => {
+            const storedName = String(e.name || '').trim();
+            const enteredName = String(name || '').trim();
+            const storedPassword = String(e.password || '');
+
+            return storedName === enteredName && (
+                storedPassword === inputHash || storedPassword === String(password || '')
+            );
+        }) || null;
     }
+
     async addEmployee(name, password, role = 'employee', centerId = null) {
         const emps = await this.getEmployees();
-        if (emps.some(e => e.name === name)) {
+        const normalizedName = String(name || '').trim();
+
+        if (!normalizedName) {
+            throw new Error('اسم الموظف مطلوب');
+        }
+
+        if (emps.some(e => String(e.name || '').trim() === normalizedName)) {
             throw new Error('اسم الموظف موجود مسبقاً');
         }
-        const empData = { name, password, role, centerId, mustChangePassword: false };
+
+        const empData = {
+            name: normalizedName,
+            password: await hashPassword(password),
+            role,
+            centerId,
+            mustChangePassword: false
+        };
+
         const docRef = await addDoc(collection(db, 'booking_employee'), empData);
         return { id: docRef.id, ...empData };
     }
+
     async updateEmployeeName(id, newName) {
         const empRefReal = doc(db, 'booking_employee', id);
         const empSnap = await getDoc(empRefReal);
         if (empSnap.exists()) {
-            await updateDoc(empRefReal, { ...empSnap.data(), name: newName });
+            await updateDoc(empRefReal, { ...empSnap.data(), name: String(newName || '').trim() });
         }
     }
+
     async resetPassword(id, newPassword) {
         const empRef = doc(db, 'booking_employee', id);
         const empSnap = await getDoc(empRef);
         if (empSnap.exists()) {
-            await updateDoc(empRef, { ...empSnap.data(), password: newPassword });
+            await updateDoc(empRef, { ...empSnap.data(), password: await hashPassword(newPassword) });
         }
     }
+
     async requirePasswordChange(id) {
         const empRef = doc(db, 'booking_employee', id);
         const empSnap = await getDoc(empRef);
@@ -251,13 +282,19 @@ class Store {
             await updateDoc(empRef, { ...empSnap.data(), mustChangePassword: true });
         }
     }
+
     async updatePassword(id, newPassword) {
         const empRef = doc(db, 'booking_employee', id);
         const empSnap = await getDoc(empRef);
         if (empSnap.exists()) {
-            await updateDoc(empRef, { ...empSnap.data(), password: newPassword, mustChangePassword: false });
+            await updateDoc(empRef, {
+                ...empSnap.data(),
+                password: await hashPassword(newPassword),
+                mustChangePassword: false
+            });
         }
     }
+
     async deleteEmployee(id) {
         await deleteDoc(doc(db, 'booking_employee', id));
     }
